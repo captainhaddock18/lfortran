@@ -574,7 +574,11 @@ public:
             visit_unit_decl1(*x.m_use[i]);
         }
         for (size_t i=0; i<x.n_decl; i++) {
-            visit_unit_decl2(*x.m_decl[i]);
+            try {
+                visit_unit_decl2(*x.m_decl[i]);
+            } catch (SemanticAbort &e) {
+                if ( !compiler_options.continue_compilation ) throw e;
+            }
         }
         process_simd_variables();
         for (size_t i=0; i<x.n_contains; i++) {
@@ -1650,7 +1654,8 @@ public:
             /* a_return_var */ ASRUtils::EXPR(return_var_ref),
             current_procedure_abi_type, s_access, deftype,
             bindc_name, is_elemental, is_pure, false, false, false,
-            nullptr, 0, is_requirement, false, false);
+            nullptr, 0, is_requirement, false, false, nullptr, x.m_start_name ? x.m_start_name : nullptr,
+            x.m_end_name ? x.m_end_name : nullptr);
         handle_save();
         parent_scope->add_symbol(sym_name, ASR::down_cast<ASR::symbol_t>(tmp));
         // populate the external_procedures_mapping
@@ -2442,7 +2447,7 @@ public:
                 // local symbol table
                 ASR::ExternalSymbol_t *es0 = ASR::down_cast<ASR::ExternalSymbol_t>(item.second);
                 std::string sym;
-                if( in_submodule ) {
+                if( in_submodule || ASR::is_a<ASR::Function_t>(*es0->m_external)) {
                     sym = item.first;
                 } else {
                     sym = to_lower(es0->m_original_name);

@@ -879,7 +879,7 @@ class ReplaceArrayOp: public ASR::BaseExprReplacer<ReplaceArrayOp> {
                                 array_3(i, j) = array_1(i, array_2(j))
                             END DO
                         END DO
-                */ 
+                */
                 has_array_type_index = true;
                 ASR::expr_t* arg = x->m_args[i].m_right;
                 Vec<ASR::expr_t*> idx_vars;
@@ -974,7 +974,7 @@ class ReplaceArrayOp: public ASR::BaseExprReplacer<ReplaceArrayOp> {
                                 ASR::expr_t* m_step = x->m_args[j].m_step;
                                 if (m_right) m_right = CastingUtil::perform_casting(m_right, int32_type, al, loc);
                                 if (m_left) m_left = CastingUtil::perform_casting(m_left, int32_type, al, loc);
-                                
+
                                 if (m_step) {
                                   m_step = CastingUtil::perform_casting(m_step, int32_type, al, loc);
                                 } else {
@@ -1002,9 +1002,9 @@ class ReplaceArrayOp: public ASR::BaseExprReplacer<ReplaceArrayOp> {
                                                         ASR::arraystorageType::ColMajor,
                                                         nullptr)),
                                                     nullptr));
-                                                    
+
                         doloop_body.push_back(al, assign);
-                    }                        
+                    }
                 );
                 *current_expr = result_var;
                 break;
@@ -1568,8 +1568,12 @@ class ReplaceArrayOp: public ASR::BaseExprReplacer<ReplaceArrayOp> {
         std::vector<bool> array_mask(x->n_args, false);
         bool at_least_one_array = false;
         for( size_t iarg = 0; iarg < x->n_args; iarg++ ) {
-            array_mask[iarg] = ASRUtils::is_array(
-                ASRUtils::expr_type(x->m_args[iarg]));
+            ASR::expr_t* arg = x->m_args[iarg];
+            if (ASR::is_a<ASR::ArrayPhysicalCast_t>(*arg)) {
+                arg = ASR::down_cast<ASR::ArrayPhysicalCast_t>(arg)->m_arg;
+            }
+            array_mask[iarg] = ASRUtils::is_array(ASRUtils::expr_type(arg)) || ASR::is_a<ASR::IntrinsicArrayFunction_t>(*arg) ||
+                        ASR::is_a<ASR::RealBinOp_t>(*arg) || ASR::is_a<ASR::IntegerBinOp_t>(*arg);
             at_least_one_array = at_least_one_array || array_mask[iarg];
         }
         if (!at_least_one_array) {
@@ -1692,37 +1696,6 @@ class ReplaceArrayOp: public ASR::BaseExprReplacer<ReplaceArrayOp> {
     }
 
     void replace_IntrinsicElementalFunction(ASR::IntrinsicElementalFunction_t* x) {
-
-        for (size_t i = 0; i < x->n_args; i++){
-            ASR::expr_t* arg = x->m_args[i];
-
-            if (ASR::is_a<ASR::ArrayPhysicalCast_t>(*arg)) {
-                arg = ASR::down_cast<ASR::ArrayPhysicalCast_t>(arg)->m_arg;
-            }
-
-            if (ASR::is_a<ASR::IntrinsicArrayFunction_t>(*arg)) {
-                ASR::expr_t** current_expr_copy_9 = current_expr;
-                current_expr = &(x->m_args[i]);
-                ASR::dimension_t* op_dims_copy = op_dims;
-                size_t op_n_dims_copy = op_n_dims;
-                self().replace_expr(x->m_args[i]);
-                x->m_args[i] = *current_expr;
-                op_dims = op_dims_copy;
-                op_n_dims = op_n_dims_copy;
-                current_expr = current_expr_copy_9;
-            } else if (ASR::is_a<ASR::IntegerBinOp_t>(*arg)) {
-                ASR::expr_t** current_expr_copy_9 = current_expr;
-                current_expr = &(x->m_args[i]);
-                ASR::dimension_t* op_dims_copy = op_dims;
-                size_t op_n_dims_copy = op_n_dims;
-                self().replace_expr(x->m_args[i]);
-                x->m_args[i] = *current_expr;
-                op_dims = op_dims_copy;
-                op_n_dims = op_n_dims_copy;
-                current_expr = current_expr_copy_9;
-            }
-        }
-
         replace_intrinsic_function(x);
         return ;
     }
